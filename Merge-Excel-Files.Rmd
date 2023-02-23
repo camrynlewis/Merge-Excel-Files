@@ -1,0 +1,45 @@
+---
+title: "Merge multiple Excel files into one workbook with separate sheets using R"
+author: "Camryn Lewis"
+date: '2023-02-23'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(tidyverse)
+library(openxlsx)
+```
+
+```{r}
+# Store file name paths in a new column
+read_filename <- function(fname) {
+  read_excel(fname, col_names = TRUE) %>%
+    mutate(filename = fname)      }
+
+data_paths <- list.files(path = "data/",
+                         pattern ="*.xlsx",
+                         full.names = TRUE) %>%
+map_df(~read_filename(.))
+
+# Remove path to isolate file names
+data_paths$filename <- gsub("data//", "", data_paths$filename)
+data_paths$filename <- gsub(".xlsx", "", data_paths$filename)
+
+# Split by file into individual lists
+name_list <- data_paths %>%
+  split(.$filename)
+  names(name_list)
+```
+
+```{r}
+# Export as new Excel file
+wb <- createWorkbook()
+
+lapply(seq_along(name_list), function(i){
+  addWorksheet(wb=wb, sheetName = names(name_list[i]))
+  writeData(wb, sheet = i, name_list[[i]][-length(name_list[[i]])]) 
+                                         })
+saveWorkbook(wb, "merged_file.xlsx", overwrite = TRUE)
+```
